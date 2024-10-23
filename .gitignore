@@ -1,4 +1,6 @@
 build/
 imgui-build/
 
+build/*
+imgui-build/*
 *.o

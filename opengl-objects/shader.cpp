@@ -59,6 +59,9 @@ Shader::Shader(std::string vsFileName, std::string fsFileName) {
 
 Shader::~Shader() { glDeleteProgram(ID); }
 
+GLuint Shader::getUniformLocation(const char *uniform) {
+  return glGetUniformLocation(ID, uniform);
+}
 void Shader::setInt(const std::string &name, float value) const {
   glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
 }

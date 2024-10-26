@@ -17,6 +17,7 @@ public:
   Shader(std::string vsFileName, std::string fsFileName);
   ~Shader();
 
+  GLuint getUniformLocation(const char *uniform);
   void setInt(const std::string &name, float value) const;
   void use() const;
 

@@ -1,8 +1,10 @@
 CPP = clang++
 C = clang
 
-FILES = shader\
-				computeShader
+FILES = shader \
+				computeShader \
+				framebuffer \
+				texture
 
 LIBFILES = glad
 
@@ -20,6 +22,8 @@ FLAGS = -std=c++20 \
 BUILD_DIR = build
 IMGUI_DIR = imgui-src
 IMGUI_BUILD = imgui-build
+OPENGL_OBJECTS_DIR = opengl-objects
+
 IMGUI = $(shell find $(IMGUI_DIR) -name '*.cpp' | sed 's/$(IMGUI_DIR)\/\(.*\)\(.cpp\)/\1/')
 LIB_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(LIBFILES)))
 BD_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(FILES)))
@@ -54,7 +58,7 @@ $(LIB_O): $(LIBFILES).c
 	mkdir -p ./$(BUILD_DIR)
 	$(C) -c -fPIC $^ -o $(BUILD_DIR)/$(LIBFILES).o
 
-$(BD_O): $(BUILD_DIR)/%.o: %.cpp
+$(BD_O): $(BUILD_DIR)/%.o: $(OPENGL_OBJECTS_DIR)/%.cpp
 	mkdir -p ./$(BUILD_DIR)
 	$(CPP) -g -c $< -std=c++20 -o $@
 

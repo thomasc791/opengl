@@ -40,7 +40,7 @@ ComputeShader::~ComputeShader() { glDeleteProgram(this->ID); }
 void ComputeShader::use() { glUseProgram(ID); }
 
 GLuint ComputeShader::getUniformLocation(const char *texName) {
-  return glGetUniformLocation(ComputeShader::ID, texName);
+  return glGetUniformLocation(ID, texName);
 }
 
 void ComputeShader::checkCompileErrors(unsigned int shader,

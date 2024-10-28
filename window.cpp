@@ -9,9 +9,9 @@
 #include "opengl-objects/texture.h"
 
 #include <GL/gl.h>
-#include <chrono>
+#include <GLFW/glfw3.h>
+#include <array>
 #include <cmath>
-#include <iterator>
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -21,9 +21,7 @@ const unsigned int TEXTURE_WIDTH = 512, TEXTURE_HEIGHT = 512;
 
 GLuint VAO, VBO, FBO, RBO;
 
-const char *vsSource;
-const char *fsSource;
-const char *csSource;
+int WINDOW_WIDTH, WINDOW_HEIGHT;
 
 int main() {
   // glfw: initialize and configure
@@ -53,12 +51,12 @@ int main() {
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+  // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+  // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
   ImGuiWindowFlags wFlags;
   // wFlags |= ImGuiWindowFlags_NoTitleBar;
-  wFlags |= ImGuiWindowFlags_NoResize;
+  // wFlags |= ImGuiWindowFlags_NoResize;
   // wFlags |= ImGuiWindowFlags_NoScrollbar;
   // wFlags |= ImGuiWindowFlags_NoScrollWithMouse;
 
@@ -86,12 +84,13 @@ int main() {
   Framebuffer framebuffer(&texFB);
 
   GLuint vbo, vao;
+  std::array<int, 4> screenPosArray{};
+  int windowPadding = 1;
+  glfwGetWindowSize(window, &WINDOW_WIDTH, &WINDOW_HEIGHT);
+  std::array<int, 2> buttonFrameSize = {200, WINDOW_WIDTH};
 
   GLuint imgOutputLocation = computeShader.getUniformLocation("imgOutput");
   GLuint texLocation = shader.getUniformLocation("tex");
-
-  // shader.use();
-  // createBox(vbo, vao);
 
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 460");
@@ -101,8 +100,6 @@ int main() {
     // input
     // -----
     // processInput(window);
-
-    auto startTime = std::chrono::system_clock::now();
     glfwPollEvents();
 
     ImGui_ImplOpenGL3_NewFrame();
@@ -111,6 +108,20 @@ int main() {
     framebuffer.bindFramebuffer();
     ImGui::NewFrame();
     {
+      ImGui::SetNextWindowSize(ImVec2(buttonFrameSize[0], WINDOW_HEIGHT));
+      // ImGui::SetCursorPos(ImVec2(0, 0));
+      ImGui::SetNextWindowPos(ImVec2(0, 0));
+      // Create Buttons window
+      ImGui::Begin("Buttons");
+      ImGui::Button("Hello");
+      ImGui::End();
+    }
+
+    {
+      screenPosArray[2] = screenPosArray[0] + buttonFrameSize[0];
+      ImGui::SetNextWindowPos(ImVec2(screenPosArray[2], screenPosArray[3]));
+      ImGui::SetNextWindowSize(
+          ImVec2(WINDOW_WIDTH - screenPosArray[2], WINDOW_HEIGHT));
       ImGui::Begin("Scene");
       const float windowWidth = ImGui::GetContentRegionAvail().x;
       const float windowHeight = ImGui::GetContentRegionAvail().y;
@@ -122,15 +133,6 @@ int main() {
 
       ImGui::Image((ImTextureID)(intptr_t)texCS.texture,
                    ImGui::GetContentRegionAvail(), ImVec2(0, 1), ImVec2(1, 0));
-      ImGui::End();
-    }
-
-    ImGui::SetNextWindowSize(ImVec2(100, 200));
-    ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos());
-    {
-      // Create Buttons window
-      ImGui::Begin("Buttons" /* , NULL, wFlags */);
-      ImGui::Button("Hello");
       ImGui::End();
     }
 
@@ -149,9 +151,6 @@ int main() {
     texCS.unbindTexture();
     glUniform1i(texLocation, texCS.texNum);
 
-    shader.use();
-    renderQuad(vao);
-
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
       GLFWwindow *backupCurrentContext = glfwGetCurrentContext();
@@ -161,8 +160,6 @@ int main() {
     }
 
     glfwSwapBuffers(window);
-    auto endTime = std::chrono::system_clock::now();
-    std::cout << (endTime - startTime).count() << std::endl;
   }
 
   ImGui_ImplOpenGL3_Shutdown();
@@ -217,5 +214,7 @@ void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
   // make sure the viewport matches the new window dimensions; note that width
   // and height will be significantly larger than specified on retina
   // displays.
+  WINDOW_WIDTH = width;
+  WINDOW_HEIGHT = height;
   glViewport(0, 0, width, height);
 }

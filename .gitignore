@@ -1,6 +1,7 @@
 build/
 imgui-build/
 
+core.*
 build/*
 imgui-build/*
 *.o

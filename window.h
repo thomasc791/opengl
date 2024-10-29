@@ -20,4 +20,6 @@ void createBox(GLuint &vbo, GLuint &vao);
 void createTexture(unsigned int &tex, unsigned int texNum);
 void createFramebuffer();
 void rescaleFramebuffer(float width, float height);
+int glfwSetup(GLFWwindow *&window);
+
 #endif

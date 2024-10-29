@@ -39,6 +39,9 @@ ComputeShader::~ComputeShader() { glDeleteProgram(this->ID); }
 
 void ComputeShader::use() { glUseProgram(ID); }
 
+void ComputeShader::setFloat(const char *var, float f) {
+  glUniform1f(glGetUniformLocation(ID, var), f);
+}
 GLuint ComputeShader::getUniformLocation(const char *texName) {
   return glGetUniformLocation(ID, texName);
 }

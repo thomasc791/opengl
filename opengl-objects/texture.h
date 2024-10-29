@@ -9,12 +9,13 @@ class Texture {
 public:
   GLuint texture;
   unsigned int texNum, width, height;
-
   Texture(unsigned int texNum, unsigned int width, unsigned int height);
   ~Texture();
 
   void bindTexture();
   void unbindTexture();
+
+private:
 };
 
 #endif

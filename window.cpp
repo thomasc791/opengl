@@ -6,45 +6,33 @@
 #include "opengl-objects/computeShader.h"
 #include "opengl-objects/framebuffer.h"
 #include "opengl-objects/shader.h"
+#include "opengl-objects/shaderStorageBuffer.h"
 #include "opengl-objects/texture.h"
 
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
 #include <array>
+#include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <cstdlib>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/vec4.hpp>
 
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-const unsigned int TEXTURE_WIDTH = 512, TEXTURE_HEIGHT = 512;
+const unsigned int TEXTURE_WIDTH = 1920, TEXTURE_HEIGHT = 1080;
 
 GLuint VAO, VBO, FBO, RBO;
 
 int WINDOW_WIDTH, WINDOW_HEIGHT;
 
 int main() {
-  // glfw: initialize and configure
-  // ------------------------------
-  glfwInit();
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  // glfw window creation
-  // --------------------
-
-  GLFWwindow *window =
-      glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Test Window", NULL, NULL);
-  if (window == NULL) {
-    std::cout << "Failed to create GLFW window" << std::endl;
-    glfwTerminate();
+  GLFWwindow *window;
+  if (glfwSetup(window) == -1)
     return -1;
-  }
-
-  glfwMakeContextCurrent(window);
-  glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
-  glfwSwapInterval(0);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -53,7 +41,6 @@ int main() {
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
   ImGuiWindowFlags wFlags;
   // wFlags |= ImGuiWindowFlags_NoTitleBar;
   // wFlags |= ImGuiWindowFlags_NoResize;
@@ -81,7 +68,23 @@ int main() {
   Texture texFB(0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
   Texture texCS(1, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 
-  Framebuffer framebuffer(&texFB);
+  Framebuffer fbo(&texFB);
+
+  std::vector<std::vector<glm::vec4>> data(
+      TEXTURE_WIDTH, std::vector<glm::vec4>(TEXTURE_HEIGHT));
+
+  for (size_t i = 0; i < TEXTURE_WIDTH; i++) {
+    for (size_t j = 0; j < TEXTURE_HEIGHT; j++) {
+      data[i][j] = {
+          ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)),
+          ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX))};
+    }
+  }
+
+  ShaderStorageBuffer ssbo(0);
+
+  ssbo.storeData((const void *)data.data(),
+                 sizeof(glm::vec4) * TEXTURE_WIDTH * TEXTURE_HEIGHT);
 
   GLuint vbo, vao;
   std::array<int, 4> screenPosArray{};
@@ -94,18 +97,22 @@ int main() {
 
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 460");
+
+  const char *fps = "FPS";
   // render loop
   // -----------
   while (!glfwWindowShouldClose(window)) {
     // input
     // -----
     // processInput(window);
+
+    auto startTime = glfwGetTime();
     glfwPollEvents();
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
 
-    framebuffer.bindFramebuffer();
+    fbo.bindFramebuffer();
     ImGui::NewFrame();
     {
       ImGui::SetNextWindowSize(ImVec2(buttonFrameSize[0], WINDOW_HEIGHT));
@@ -113,7 +120,7 @@ int main() {
       ImGui::SetNextWindowPos(ImVec2(0, 0));
       // Create Buttons window
       ImGui::Begin("Buttons");
-      ImGui::Button("Hello");
+      ImGui::Button(fps);
       ImGui::End();
     }
 
@@ -126,7 +133,7 @@ int main() {
       const float windowWidth = ImGui::GetContentRegionAvail().x;
       const float windowHeight = ImGui::GetContentRegionAvail().y;
 
-      framebuffer.rescaleFramebuffer(windowWidth, windowHeight);
+      fbo.rescaleFramebuffer(windowWidth, windowHeight);
       glViewport(0, 0, windowWidth, windowHeight);
 
       ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -137,19 +144,23 @@ int main() {
     }
 
     ImGui::Render();
-    framebuffer.unbindFramebuffer();
+    fbo.unbindFramebuffer();
 
     texCS.bindTexture();
+    ssbo.bindSSB();
+
     computeShader.use();
+    computeShader.setFloat("t", startTime);
     glUniform1i(imgOutputLocation, texCS.texNum);
-    glDispatchCompute((unsigned int)TEXTURE_WIDTH, (unsigned int)TEXTURE_HEIGHT,
-                      1);
+    glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
+                      (unsigned int)TEXTURE_HEIGHT / 8, 1);
 
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    ssbo.unbindSSB();
     texCS.unbindTexture();
-    glUniform1i(texLocation, texCS.texNum);
+    // glUniform1i(texLocation, texCS.texNum);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -160,6 +171,8 @@ int main() {
     }
 
     glfwSwapBuffers(window);
+
+    fps = std::to_string((glfwGetTime() - startTime)).c_str();
   }
 
   ImGui_ImplOpenGL3_Shutdown();
@@ -217,4 +230,26 @@ void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
   WINDOW_WIDTH = width;
   WINDOW_HEIGHT = height;
   glViewport(0, 0, width, height);
+}
+
+int glfwSetup(GLFWwindow *&window) {
+  glfwInit();
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  // glfw window creation
+  // --------------------
+
+  window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Test Window", NULL, NULL);
+  if (window == NULL) {
+    std::cout << "Failed to create GLFW window" << std::endl;
+    glfwTerminate();
+    return -1;
+  }
+
+  glfwMakeContextCurrent(window);
+  glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+  glfwSwapInterval(0);
+  return 0;
 }

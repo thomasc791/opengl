@@ -10,15 +10,16 @@
 
 class Framebuffer {
 public:
-  GLuint m_fbo, m_rbo;
-  Texture &m_texture;
-
   Framebuffer(Texture *texture);
   ~Framebuffer();
 
   void rescaleFramebuffer(unsigned int width, unsigned int height);
   void bindFramebuffer();
   void unbindFramebuffer();
+
+private:
+  GLuint m_fbo, m_rbo;
+  Texture &m_texture;
 };
 
 #endif

@@ -4,6 +4,7 @@ C = clang
 FILES = shader \
 				computeShader \
 				framebuffer \
+				shaderStorageBuffer \
 				texture
 
 LIBFILES = glad
@@ -64,3 +65,4 @@ $(BD_O): $(BUILD_DIR)/%.o: $(OPENGL_OBJECTS_DIR)/%.cpp
 
 clean:
 	rm -rf ./$(BUILD_DIR)
+	rm core.*

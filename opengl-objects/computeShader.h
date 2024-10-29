@@ -18,6 +18,7 @@ public:
   ~ComputeShader();
 
   void use();
+  void setFloat(const char *var, float f);
   GLuint getUniformLocation(const char *texName);
 
 private:

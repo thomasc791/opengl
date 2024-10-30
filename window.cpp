@@ -75,16 +75,16 @@ int main() {
 
   for (size_t i = 0; i < TEXTURE_WIDTH; i++) {
     for (size_t j = 0; j < TEXTURE_HEIGHT; j++) {
-      data[i][j] = {
-          ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)),
-          ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX))};
+      data[i][j] = {float(i) / (float)TEXTURE_WIDTH, float(j) / TEXTURE_HEIGHT,
+                    1.0, 1.0};
     }
+    std::cout << data[i][0][0] << std::endl;
   }
 
   ShaderStorageBuffer ssbo(0);
 
   ssbo.storeData((const void *)data.data(),
-                 sizeof(glm::vec4) * TEXTURE_WIDTH * TEXTURE_HEIGHT);
+                 sizeof(glm::vec4) * (TEXTURE_WIDTH) * (TEXTURE_HEIGHT));
 
   GLuint vbo, vao;
   std::array<int, 4> screenPosArray{};
@@ -241,7 +241,8 @@ int glfwSetup(GLFWwindow *&window) {
   // glfw window creation
   // --------------------
 
-  window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Test Window", NULL, NULL);
+  window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Test Window",
+                            glfwGetPrimaryMonitor(), NULL);
   if (window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();

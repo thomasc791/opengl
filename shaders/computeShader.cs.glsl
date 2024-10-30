@@ -24,6 +24,9 @@ void main() {
     value.x = waveArray.data[texelCoord.x][texelCoord.y].x;
     value.y = waveArray.data[texelCoord.x][texelCoord.y].y;
     value.z = waveArray.data[texelCoord.x][texelCoord.y].z;
+    waveArray.data[texelCoord.x][texelCoord.y].x = waveArray.data[texelCoord.x][texelCoord.y].y;
+    waveArray.data[texelCoord.x][texelCoord.y].y = waveArray.data[texelCoord.x][texelCoord.y].z;
+    waveArray.data[texelCoord.x][texelCoord.y].z = waveArray.data[texelCoord.x][texelCoord.y].x;
     // waveArray.data[texelCoord.x][texelCoord.y].x = 1f;
     // value.z = waveArray.data[texelCoord.x][texelCoord.y].x;
     imageStore(imgOutput, texelCoord, value);

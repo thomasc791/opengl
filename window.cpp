@@ -1,3 +1,6 @@
+// ==========================================================-GLAD_setup-==============================================================================
+// https://glad.dav1d.de/#language=c&specification=gl&api=gl%3D4.6&api=gles1%3Dnone&api=gles2%3Dnone&api=glsc2%3Dnone&profile=core&extensions=GL_ARB_arrays_of_arrays&extensions=GL_ARB_buffer_storage&extensions=GL_ARB_clear_buffer_object&extensions=GL_ARB_clear_texture&extensions=GL_ARB_compute_shader&extensions=GL_ARB_copy_buffer&extensions=GL_ARB_copy_image&extensions=GL_ARB_direct_state_access&extensions=GL_ARB_shader_objects&extensions=GL_ARB_shader_storage_buffer_object&extensions=GL_ARB_texture_buffer_object&extensions=GL_ARB_texture_buffer_object_rgb32&loader=on
+// ====================================================================================================================================================
 #include "window.h"
 
 #include "imgui-src/imgui.h"
@@ -9,15 +12,18 @@
 #include "opengl-objects/shaderStorageBuffer.h"
 #include "opengl-objects/texture.h"
 
-#include <GL/gl.h>
-#include <GLFW/glfw3.h>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
-#include <glm/ext/vector_float3.hpp>
-#include <glm/vec4.hpp>
+#include <thread>
+#include <vector>
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+#include <glad/glad.h>
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -63,6 +69,7 @@ int main() {
   // Shader creation
   Shader shader("vertexShader.vs.glsl", "fragmentShader.fs.glsl");
   ComputeShader computeShader("computeShader.cs.glsl");
+  ComputeShader dataSyncShader("dataSync.cs.glsl");
 
   // Texture creation
   Texture texFB(0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
@@ -70,21 +77,23 @@ int main() {
 
   Framebuffer fbo(&texFB);
 
-  std::vector<std::vector<glm::vec4>> data(
-      TEXTURE_WIDTH, std::vector<glm::vec4>(TEXTURE_HEIGHT));
+  std::vector<Wave> data((TEXTURE_WIDTH + 2) * (TEXTURE_HEIGHT + 2));
+  int simSpeed = 100;
 
-  for (size_t i = 0; i < TEXTURE_WIDTH; i++) {
-    for (size_t j = 0; j < TEXTURE_HEIGHT; j++) {
-      data[i][j] = {float(i) / (float)TEXTURE_WIDTH, float(j) / TEXTURE_HEIGHT,
-                    1.0, 1.0};
+  for (size_t j = 1; j < TEXTURE_HEIGHT + 1; j++) {
+    for (size_t i = 1; i < TEXTURE_WIDTH + 1; i++) {
+      if (j > TEXTURE_HEIGHT / 2 - 10 && j < TEXTURE_HEIGHT / 2 + 10 &&
+          i > TEXTURE_WIDTH / 2 - 10 && i < TEXTURE_WIDTH / 2 + 10) {
+        data[j * TEXTURE_WIDTH + i] = {10, 10, 10, 1.0};
+      } else {
+        data[j * TEXTURE_WIDTH + i] = {0.0, 0.0, 0.0, 1.0};
+      }
     }
-    std::cout << data[i][0][0] << std::endl;
   }
 
-  ShaderStorageBuffer ssbo(0);
+  ShaderStorageBuffer ssbo(3);
 
-  ssbo.storeData((const void *)data.data(),
-                 sizeof(glm::vec4) * (TEXTURE_WIDTH) * (TEXTURE_HEIGHT));
+  ssbo.storeData((const void *)&data[0], sizeof(Wave) * data.size());
 
   GLuint vbo, vao;
   std::array<int, 4> screenPosArray{};
@@ -92,11 +101,8 @@ int main() {
   glfwGetWindowSize(window, &WINDOW_WIDTH, &WINDOW_HEIGHT);
   std::array<int, 2> buttonFrameSize = {200, WINDOW_WIDTH};
 
-  GLuint imgOutputLocation = computeShader.getUniformLocation("imgOutput");
-  GLuint texLocation = shader.getUniformLocation("tex");
-
   ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL3_Init("#version 460");
+  ImGui_ImplOpenGL3_Init("#version 440");
 
   const char *fps = "FPS";
   // render loop
@@ -119,10 +125,24 @@ int main() {
       // ImGui::SetCursorPos(ImVec2(0, 0));
       ImGui::SetNextWindowPos(ImVec2(0, 0));
       // Create Buttons window
-      ImGui::Begin("Buttons");
-      ImGui::Button(fps);
+      ImGui::Begin("Parameters");
+      ImVec2 initPos = ImGui::GetCursorPos();
+      ImGui::PushID(99);
+      if (ImGui::Button(fps)) {
+        std::cout << "True" << std::endl;
+        glfwSetWindowShouldClose(window, 1);
+      }
+      static char shaderFile[32] = "computeShader";
+      ImGui::PopID();
+      ImGui::SliderInt("Speed", &simSpeed, 100, 0);
+      int padding = ImGui::GetStyle().FramePadding.y + 1;
+      ImGui::SetCursorPos(ImVec2(8, WINDOW_HEIGHT - initPos.y - padding -
+                                        ImGui::GetFrameHeight()));
+      ImGui::Button("Recompile Shader");
+      ImGui::InputText("Shader", shaderFile, IM_ARRAYSIZE(shaderFile));
       ImGui::End();
     }
+
 
     {
       screenPosArray[2] = screenPosArray[0] + buttonFrameSize[0];
@@ -147,20 +167,32 @@ int main() {
     fbo.unbindFramebuffer();
 
     texCS.bindTexture();
-    ssbo.bindSSB();
 
     computeShader.use();
-    computeShader.setFloat("t", startTime);
-    glUniform1i(imgOutputLocation, texCS.texNum);
+    computeShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    computeShader.setInt("imgOutput", texCS.texNum);
     glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
                       (unsigned int)TEXTURE_HEIGHT / 8, 1);
 
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    ssbo.unbindSSB();
+    // This shader transfers the data from the previous iteration to the current
+    //
+    // uPrev = u
+    // u = uNext
+    //
+    // to prevent data races conditions
+    dataSyncShader.use();
+    dataSyncShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    dataSyncShader.setInt("imgOutput", texCS.texNum);
+    glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
+                      (unsigned int)TEXTURE_HEIGHT / 8, 1);
+
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     texCS.unbindTexture();
-    // glUniform1i(texLocation, texCS.texNum);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -172,6 +204,8 @@ int main() {
 
     glfwSwapBuffers(window);
 
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(100 * (100 - simSpeed)));
     fps = std::to_string((glfwGetTime() - startTime)).c_str();
   }
 
@@ -242,7 +276,7 @@ int glfwSetup(GLFWwindow *&window) {
   // --------------------
 
   window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Test Window",
-                            glfwGetPrimaryMonitor(), NULL);
+                            /* glfwGetPrimaryMonitor() */ NULL, NULL);
   if (window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();

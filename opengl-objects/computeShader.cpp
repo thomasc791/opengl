@@ -39,11 +39,19 @@ ComputeShader::~ComputeShader() { glDeleteProgram(this->ID); }
 
 void ComputeShader::use() { glUseProgram(ID); }
 
-void ComputeShader::setFloat(const char *var, float f) {
-  glUniform1f(glGetUniformLocation(ID, var), f);
-}
 GLuint ComputeShader::getUniformLocation(const char *texName) {
   return glGetUniformLocation(ID, texName);
+}
+
+void ComputeShader::setFloat(const std::string &var, float f) const {
+  glUniform1f(glGetUniformLocation(ID, var.c_str()), f);
+}
+void ComputeShader::setInt(const std::string &var, int i) const {
+  glUniform1i(glGetUniformLocation(ID, var.c_str()), i);
+}
+
+void ComputeShader::setUIvec2(const std::string &var, uint x, uint y) const {
+  glUniform2ui(glGetUniformLocation(ID, var.c_str()), x, y);
 }
 
 void ComputeShader::checkCompileErrors(unsigned int shader,

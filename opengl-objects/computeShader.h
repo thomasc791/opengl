@@ -18,8 +18,10 @@ public:
   ~ComputeShader();
 
   void use();
-  void setFloat(const char *var, float f);
   GLuint getUniformLocation(const char *texName);
+  void setInt(const std::string &var, int i) const;
+  void setFloat(const std::string &var, float f) const;
+  void setUIvec2(const std::string &var, uint x, uint y) const;
 
 private:
   void checkCompileErrors(unsigned int shader, std::string shaderType);

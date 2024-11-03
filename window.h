@@ -11,6 +11,13 @@
 
 #include <iostream>
 
+struct Wave {
+  float uPrev;
+  float u;
+  float uNext;
+  float _padding;
+};
+
 void framebufferSizeCallback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 std::string readShader(std::string fileName);

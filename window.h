@@ -4,6 +4,8 @@
 #include "imgui-src/imgui.h"
 #include "imgui-src/imgui_impl_glfw.h"
 #include "imgui-src/imgui_impl_opengl3.h"
+#include "opengl-objects/computeShader.h"
+#include "opengl-objects/shader.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -26,6 +28,7 @@ void renderQuad(GLuint &vao);
 void createBox(GLuint &vbo, GLuint &vao);
 void createTexture(unsigned int &tex, unsigned int texNum);
 void createFramebuffer();
+void shaderInputCallback(ComputeShader &shader, const char *file);
 void rescaleFramebuffer(float width, float height);
 int glfwSetup(GLFWwindow *&window);
 

@@ -13,6 +13,7 @@
 class ComputeShader {
 public:
   unsigned int ID;
+  std::string fileName, computeShaderSource, cs;
 
   ComputeShader(std::string fileName);
   ~ComputeShader();
@@ -22,9 +23,11 @@ public:
   void setInt(const std::string &var, int i) const;
   void setFloat(const std::string &var, float f) const;
   void setUIvec2(const std::string &var, uint x, uint y) const;
+  void update();
 
 private:
-  void checkCompileErrors(unsigned int shader, std::string shaderType);
+  void checkCompileErrors(const unsigned int shader,
+                          const std::string shaderType) const;
 };
 
 #endif

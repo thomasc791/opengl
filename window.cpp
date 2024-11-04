@@ -68,8 +68,8 @@ int main() {
 
   // Shader creation
   Shader shader("vertexShader.vs.glsl", "fragmentShader.fs.glsl");
-  ComputeShader computeShader("computeShader.cs.glsl");
-  ComputeShader dataSyncShader("dataSync.cs.glsl");
+  ComputeShader computeShader("computeShader");
+  ComputeShader dataSyncShader("dataSync");
 
   // Texture creation
   Texture texFB(0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
@@ -138,11 +138,15 @@ int main() {
       int padding = ImGui::GetStyle().FramePadding.y + 1;
       ImGui::SetCursorPos(ImVec2(8, WINDOW_HEIGHT - initPos.y - padding -
                                         ImGui::GetFrameHeight()));
-      ImGui::Button("Recompile Shader");
+      if (ImGui::Button("Recompile Shader")) {
+        if (sizeof(shaderFile) / sizeof(shaderFile[0]) < 40) {
+          std::cout << "Recompiling script: " << shaderFile << std::endl;
+          shaderInputCallback(computeShader, shaderFile);
+        }
+      }
       ImGui::InputText("Shader", shaderFile, IM_ARRAYSIZE(shaderFile));
       ImGui::End();
     }
-
 
     {
       screenPosArray[2] = screenPosArray[0] + buttonFrameSize[0];
@@ -254,8 +258,13 @@ void renderQuad(GLuint &vao) {
   glBindVertexArray(0);
 }
 
-// glfw: whenever the window size changed (by OS or user resize) this callback
-// function executes
+void shaderInputCallback(ComputeShader &shader, const char *file) {
+  shader.fileName = file;
+  shader.update();
+}
+
+// glfw: whenever the window size changed (by OS or user resize) this
+// callback function executes
 // ---------------------------------------------------------------------------------------------
 void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
   // make sure the viewport matches the new window dimensions; note that width

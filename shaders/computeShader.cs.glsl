@@ -31,12 +31,12 @@ void main() {
     uint j = gl_GlobalInvocationID.y + 1;
     uint curr = j * texSize.x + i;
 
-    data[curr].uNext = 1 * (2 * data[curr].u - data[curr].uPrev + 0.25 * (
+    data[curr].uNext = 0.9999 * (2 * data[curr].u - data[curr].uPrev + 0.25 * (
                     data[curr - 1].u + data[curr + 1].u + data[(j - 1) * texSize.x + i].u + data[(j + 1) * texSize.x + i].u - 4 * data[curr].u));
 
-    value.x = mix(0.5, 0.0, -100 * (data[curr].uNext));
-    value.y = mix(0.9, 0.0, 50 * (data[curr].uNext) * (data[curr].uNext));
-    value.z = mix(0.7, 0.0, 10 * data[curr].uNext);
+    value.x = mix(1.0, 0.0, int(data[curr].uNext >= 0) * -100 * (data[curr].uNext) + data[curr].u);
+    value.y = mix(1.0, 0.0, 10 * abs(data[curr].uNext));
+    value.z = mix(1.0, 0.0, int(data[curr].uNext >= 0) * 100 * data[curr].uNext + data[curr].u);
 
     imageStore(imgOutput, texelCoord, value);
 }

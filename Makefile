@@ -1,6 +1,9 @@
 CPP = clang++
 C = clang
 
+WAVE_FILES = waves
+ANT_FILES = ant-colony
+
 FILES = shader \
 				computeShader \
 				framebuffer \
@@ -22,6 +25,8 @@ FLAGS = -std=c++20 \
 				-Wunused-command-line-argument \
 				-g
 
+WAVE_DIR = waves
+ANT_DIR = ant-colony
 LIB_DIR = lib
 BUILD_DIR = build
 IMGUI_DIR = imgui-src
@@ -31,23 +36,29 @@ OPENGL_OBJECTS_DIR = opengl-objects
 IMGUI = $(shell find $(IMGUI_DIR) -name '*.cpp' | sed 's/$(IMGUI_DIR)\/\(.*\)\(.cpp\)/\1/')
 LIB_O = $(addprefix $(LIB_DIR)/, $(addsuffix .o, $(LIBFILES)))
 BD_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(FILES)))
+WAVE_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(WAVE_FILES)))
+WAVE_CPP = $(addprefix $(WAVE_DIR)/, $(addsuffix .cpp, $(WAVE_FILES)))
+ANT_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(ANT_FILES)))
+ANT_CPP = $(addprefix $(ANT_DIR)/, $(addsuffix .cpp, $(ANT_FILES)))
 IMGUI_FILES = $(addprefix $(IMGUI_DIR)/, $(addsuffix .cpp, $(IMGUI)))
 IMGUI_O = $(addprefix $(IMGUI_BUILD)/, $(addsuffix .o, $(IMGUI)))
 
-all: lib $(BD_O) window
+all: lib $(BD_O) waves 
 
 $(BUILD_DIR)/%.o: %.cpp
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
-example: $(BUILD_DIR)/example.o
-	$(CPP) $^ $(IMGUI_O) $(FLAGS) $(BUILD_DIR)/$(LIBFILES).so -o $(BUILD_DIR)/$@
+$(WAVE_O): $(WAVE_CPP)
+	$(CPP) -g -c $^ -std=c++20 -o $@
 
+$(ANT_O): $(ANT_CPP)
+	$(CPP) -g -c $^ -std=c++20 -o $@
 
-window: $(BUILD_DIR)/window.o $(BD_O)
+waves: $(WAVE_O) $(BD_O)
 	$(CPP) $^ $(IMGUI_O)  $(FLAGS) -o $(BUILD_DIR)/$@
 
-computeSimple: $(BUILD_DIR)/computeSimple.o
-	$(CPP) $^ $(BD_O) $(IMGUI_O) $(FLAGS) $(BUILD_DIR)/$(LIBFILES).so -o $(BUILD_DIR)/$@
+ant: $(ANT_O) $(BD_O)
+	$(CPP) $^ $(IMGUI_O)  $(FLAGS) -o $(BUILD_DIR)/$@
 
 imgui: $(IMGUI_O)
 

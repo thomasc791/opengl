@@ -1,23 +1,28 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
-#include "imgui-src/imgui.h"
-#include "imgui-src/imgui_impl_glfw.h"
-#include "imgui-src/imgui_impl_opengl3.h"
-#include "opengl-objects/computeShader.h"
-#include "opengl-objects/shader.h"
+#include "../imgui-src/imgui.h"
+#include "../imgui-src/imgui_impl_glfw.h"
+#include "../imgui-src/imgui_impl_opengl3.h"
+#include "../opengl-objects/computeShader.h"
+#include "../opengl-objects/shader.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
-
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 #include <iostream>
 
-struct Wave {
-  float uPrev;
-  float u;
-  float uNext;
-  float _padding;
+struct Ant {
+  glm::vec2 pos;
+  glm::vec2 dir;
+  glm::vec4 color;
+};
+
+struct Image {
+  glm::vec4 u;
+  glm::vec4 uPrev;
 };
 
 void framebufferSizeCallback(GLFWwindow *window, int width, int height);

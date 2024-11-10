@@ -1,16 +1,16 @@
 // ==========================================================-GLAD_setup-==============================================================================
 // https://glad.dav1d.de/#language=c&specification=gl&api=gl%3D4.6&api=gles1%3Dnone&api=gles2%3Dnone&api=glsc2%3Dnone&profile=core&extensions=GL_ARB_arrays_of_arrays&extensions=GL_ARB_buffer_storage&extensions=GL_ARB_clear_buffer_object&extensions=GL_ARB_clear_texture&extensions=GL_ARB_compute_shader&extensions=GL_ARB_copy_buffer&extensions=GL_ARB_copy_image&extensions=GL_ARB_direct_state_access&extensions=GL_ARB_shader_objects&extensions=GL_ARB_shader_storage_buffer_object&extensions=GL_ARB_texture_buffer_object&extensions=GL_ARB_texture_buffer_object_rgb32&loader=on
 // ====================================================================================================================================================
-#include "window.h"
+#include "ant-colony.h"
 
-#include "imgui-src/imgui.h"
-#include "imgui-src/imgui_impl_glfw.h"
+#include "../imgui-src/imgui.h"
+#include "../imgui-src/imgui_impl_glfw.h"
 
-#include "opengl-objects/computeShader.h"
-#include "opengl-objects/framebuffer.h"
-#include "opengl-objects/shader.h"
-#include "opengl-objects/shaderStorageBuffer.h"
-#include "opengl-objects/texture.h"
+#include "../opengl-objects/computeShader.h"
+#include "../opengl-objects/framebuffer.h"
+#include "../opengl-objects/shader.h"
+#include "../opengl-objects/shaderStorageBuffer.h"
+#include "../opengl-objects/texture.h"
 
 #include <array>
 #include <chrono>
@@ -18,6 +18,8 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -31,9 +33,10 @@ const unsigned int SCR_HEIGHT = 600;
 
 const unsigned int TEXTURE_WIDTH = 1920, TEXTURE_HEIGHT = 1080;
 
-GLuint VAO, VBO, FBO, RBO;
-
 int WINDOW_WIDTH, WINDOW_HEIGHT;
+
+const unsigned int numAnts = 1024 * 1000;
+const int radius = 540;
 
 int main() {
   GLFWwindow *window;
@@ -42,11 +45,13 @@ int main() {
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
+
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+  //
   ImGuiWindowFlags wFlags;
   // wFlags |= ImGuiWindowFlags_NoTitleBar;
   // wFlags |= ImGuiWindowFlags_NoResize;
@@ -66,34 +71,55 @@ int main() {
     return -1;
   }
 
+  std::string project =
+      "/" + std::filesystem::path(__FILE__).parent_path().string();
+
   // Shader creation
-  Shader shader("vertexShader.vs.glsl", "fragmentShader.fs.glsl");
-  ComputeShader computeShader("computeShader");
-  ComputeShader dataSyncShader("dataSync");
+  Shader shader(project, "vertexShader.vs.glsl", "fragmentShader.fs.glsl");
+  ComputeShader computeShader(project, "computeShader");
+  ComputeShader drawAntImage(project, "drawAntImage");
+  ComputeShader swapBuffer(project, "swapBuffer");
 
   // Texture creation
   Texture texFB(0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
   Texture texCS(1, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 
+  // Set initial values of compute shaders
+  computeShader.use();
+  computeShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
+
+  drawAntImage.use();
+  drawAntImage.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
+  drawAntImage.setInt("imgOutput", texCS.texNum);
+
+  swapBuffer.use();
+  swapBuffer.setInt("imgOutput", texCS.texNum);
+  //
+
   Framebuffer fbo(&texFB);
 
-  std::vector<Wave> data((TEXTURE_WIDTH + 2) * (TEXTURE_HEIGHT + 2));
+  std::vector<Ant> ant(numAnts);
+  std::vector<Image> image(TEXTURE_WIDTH * TEXTURE_HEIGHT);
   int simSpeed = 100;
+  float vel = 0;
 
-  for (size_t j = 1; j < TEXTURE_HEIGHT + 1; j++) {
-    for (size_t i = 1; i < TEXTURE_WIDTH + 1; i++) {
-      if (j > TEXTURE_HEIGHT / 2 - 10 && j < TEXTURE_HEIGHT / 2 + 10 &&
-          i > TEXTURE_WIDTH / 2 - 10 && i < TEXTURE_WIDTH / 2 + 10) {
-        data[j * TEXTURE_WIDTH + i] = {10, 10, 10, 1.0};
-      } else {
-        data[j * TEXTURE_WIDTH + i] = {0.0, 0.0, 0.0, 1.0};
-      }
-    }
+  for (size_t i = 0; i < numAnts; i++) {
+    float r = std::sqrt(rand() / (float)RAND_MAX * std::pow(radius, 2));
+    float a = rand() / (float)RAND_MAX * 2 * M_PI;
+    ant[i].pos = {r * std::cos(a) + (float)TEXTURE_WIDTH / 2,
+                  r * std::sin(a) + (float)TEXTURE_HEIGHT / 2};
+    ant[i].dir = {ant[i].pos -
+                  glm::vec2(TEXTURE_WIDTH / 2, TEXTURE_HEIGHT / 2)};
+    ant[i].dir /= -1 * std::sqrt(ant[i].dir.x * ant[i].dir.x +
+                                 ant[i].dir.y * ant[i].dir.y);
+    ant[i].color = {1.0, 1.0, 1.0, 1.0};
   }
 
-  ShaderStorageBuffer ssbo(3);
+  ShaderStorageBuffer ssbo(0);
+  ShaderStorageBuffer antImage(1);
 
-  ssbo.storeData((const void *)&data[0], sizeof(Wave) * data.size());
+  ssbo.storeData((const void *)&ant[0], sizeof(Ant) * ant.size());
+  antImage.storeData((const void *)&image[0], sizeof(Image) * image.size());
 
   GLuint vbo, vao;
   std::array<int, 4> screenPosArray{};
@@ -105,9 +131,12 @@ int main() {
   ImGui_ImplOpenGL3_Init("#version 440");
 
   const char *fps = "FPS";
+  double totTime;
+  size_t it = 0;
   // render loop
   // -----------
   while (!glfwWindowShouldClose(window)) {
+    it++;
     // input
     // -----
     // processInput(window);
@@ -127,14 +156,14 @@ int main() {
       // Create Buttons window
       ImGui::Begin("Parameters");
       ImVec2 initPos = ImGui::GetCursorPos();
-      ImGui::PushID(99);
-      if (ImGui::Button(fps)) {
+      ImGui::Text("%s", fps);
+      if (ImGui::Button("close")) {
         std::cout << "True" << std::endl;
         glfwSetWindowShouldClose(window, 1);
       }
       static char shaderFile[32] = "computeShader";
-      ImGui::PopID();
-      ImGui::SliderInt("Speed", &simSpeed, 100, 0);
+      ImGui::SliderInt("SimSpeed", &simSpeed, 100, 0);
+      ImGui::SliderFloat("Velocity", &vel, 0, 1.0);
       int padding = ImGui::GetStyle().FramePadding.y + 1;
       ImGui::SetCursorPos(ImVec2(8, WINDOW_HEIGHT - initPos.y - padding -
                                         ImGui::GetFrameHeight()));
@@ -170,33 +199,24 @@ int main() {
     ImGui::Render();
     fbo.unbindFramebuffer();
 
+    computeShader.use();
+    computeShader.setFloat("vel", vel);
+    glDispatchCompute((unsigned int)numAnts / 1024, 1, 1);
+
     texCS.bindTexture();
 
-    computeShader.use();
-    computeShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    computeShader.setInt("imgOutput", texCS.texNum);
-    glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
-                      (unsigned int)TEXTURE_HEIGHT / 8, 1);
-
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // This shader transfers the data from the previous iteration to the current
-    //
-    // uPrev = u
-    // u = uNext
-    //
-    // to prevent data races conditions
-    dataSyncShader.use();
-    dataSyncShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    dataSyncShader.setInt("imgOutput", texCS.texNum);
-    glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
-                      (unsigned int)TEXTURE_HEIGHT / 8, 1);
+    drawAntImage.use();
+    glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
+                      1);
 
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     texCS.unbindTexture();
+
+    swapBuffer.use();
+    glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
+                      1);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -210,7 +230,8 @@ int main() {
 
     std::this_thread::sleep_for(
         std::chrono::microseconds(100 * (100 - simSpeed)));
-    fps = std::to_string((glfwGetTime() - startTime)).c_str();
+    totTime += glfwGetTime() - startTime;
+    fps = std::to_string(totTime / it).c_str();
   }
 
   ImGui_ImplOpenGL3_Shutdown();
@@ -285,7 +306,7 @@ int glfwSetup(GLFWwindow *&window) {
   // --------------------
 
   window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Test Window",
-                            /* glfwGetPrimaryMonitor() */ NULL, NULL);
+                            glfwGetPrimaryMonitor(), NULL);
   if (window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();

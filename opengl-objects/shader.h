@@ -13,8 +13,9 @@
 class Shader {
 public:
   unsigned int ID;
+  std::string project;
 
-  Shader(std::string vsFileName, std::string fsFileName);
+  Shader(std::string project, std::string vsFileName, std::string fsFileName);
   ~Shader();
 
   GLuint getUniformLocation(const char *uniform);

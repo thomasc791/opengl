@@ -7,7 +7,7 @@ struct Wave {
     float _padding;
 };
 
-layout(local_size_x = 128, local_size_y = 9, local_size_z = 1) in;
+layout(local_size_x = 128, local_size_y = 8, local_size_z = 1) in;
 layout(binding = 3, std430) buffer WaveArray {
     Wave data[];
 };

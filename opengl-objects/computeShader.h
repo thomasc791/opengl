@@ -13,9 +13,10 @@
 class ComputeShader {
 public:
   unsigned int ID;
-  std::string fileName, computeShaderSource, cs;
+  std::string project, fileName;
+  std::string computeShaderSource, cs;
 
-  ComputeShader(std::string fileName);
+  ComputeShader(std::string project, std::string fileName);
   ~ComputeShader();
 
   void use();

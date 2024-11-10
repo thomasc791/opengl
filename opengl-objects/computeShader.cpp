@@ -1,7 +1,8 @@
 #include "computeShader.h"
 #include <fstream>
 
-ComputeShader::ComputeShader(std::string fileName) : fileName(fileName) {
+ComputeShader::ComputeShader(std::string project, std::string fileName)
+    : fileName(fileName), project(project) {
   this->update();
 }
 
@@ -30,7 +31,7 @@ void ComputeShader::update() {
 
   try {
     std::string cp = std::filesystem::current_path();
-    std::string fp = cp + "/shaders/" + fileName + ".cs.glsl";
+    std::string fp = cp + project + "/shaders/" + fileName + ".cs.glsl";
     std::cout << "Reading Compute Shader: \n" << fp << std::endl;
     csFile.open(fp);
     std::stringstream buf;

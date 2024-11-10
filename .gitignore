@@ -1,7 +1,8 @@
 build/
 imgui-build/
-
-core.*
 build/*
 imgui-build/*
+
+core.*
 *.o
+*.ini

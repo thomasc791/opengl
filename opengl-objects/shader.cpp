@@ -2,7 +2,9 @@
 #include <exception>
 #include <fstream>
 
-Shader::Shader(std::string vsFileName, std::string fsFileName) {
+Shader::Shader(std::string project, std::string vsFileName,
+               std::string fsFileName)
+    : project(project) {
   std::string vertexShaderSource;
   std::string fragmentShaderSource;
 
@@ -14,8 +16,8 @@ Shader::Shader(std::string vsFileName, std::string fsFileName) {
 
   try {
     std::string cp = std::filesystem::current_path();
-    vs = cp + "/shaders/" + vsFileName;
-    fs = cp + "/shaders/" + fsFileName;
+    vs = cp + project + "/shaders/" + vsFileName;
+    fs = cp + project + "/shaders/" + fsFileName;
 
     std::cout << "Reading files: \n" << vs << "\n" << fs << std::endl;
     vsFile.open(vs);

@@ -17,8 +17,13 @@ GLuint ComputeShader::getUniformLocation(const char *texName) {
 void ComputeShader::setFloat(const std::string &var, float f) const {
   glUniform1f(glGetUniformLocation(ID, var.c_str()), f);
 }
+
 void ComputeShader::setInt(const std::string &var, int i) const {
   glUniform1i(glGetUniformLocation(ID, var.c_str()), i);
+}
+
+void ComputeShader::setUint(const std::string &var, uint i) const {
+  glUniform1ui(glGetUniformLocation(ID, var.c_str()), i);
 }
 
 void ComputeShader::setUIvec2(const std::string &var, uint x, uint y) const {

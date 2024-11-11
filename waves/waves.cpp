@@ -108,6 +108,8 @@ int main() {
   ImGui_ImplOpenGL3_Init("#version 440");
 
   const char *fps = "FPS";
+  bool runIt = true;
+  bool pause = false;
   // render loop
   // -----------
   while (!glfwWindowShouldClose(window)) {
@@ -138,6 +140,19 @@ int main() {
       static char shaderFile[32] = "computeShader";
       ImGui::PopID();
       ImGui::SliderInt("Speed", &simSpeed, 100, 0);
+      if (ImGui::Button("||")) {
+        pause = true;
+        runIt = false;
+      }
+      ImGui::SameLine();
+      if (ImGui::Button(">"))
+        runIt = true;
+      ImGui::SameLine();
+      if (ImGui::Button(">>")) {
+        runIt = true;
+        pause = false;
+      }
+
       int padding = ImGui::GetStyle().FramePadding.y + 1;
       ImGui::SetCursorPos(ImVec2(8, WINDOW_HEIGHT - initPos.y - padding -
                                         ImGui::GetFrameHeight()));
@@ -173,39 +188,41 @@ int main() {
     ImGui::Render();
     fbo.unbindFramebuffer();
 
-    texCS.bindTexture();
+    if (runIt) {
+      texCS.bindTexture();
 
-    computeShader.use();
-    computeShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    computeShader.setInt("imgOutput", texCS.texNum);
-    glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
-                      1);
-    // glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
-    //                   (unsigned int)TEXTURE_HEIGHT / 8, 1);
+      computeShader.use();
+      computeShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
+      computeShader.setInt("imgOutput", texCS.texNum);
+      glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
+                        1);
+      // glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
+      //                   (unsigned int)TEXTURE_HEIGHT / 8, 1);
 
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // This shader transfers the data from the previous
-    // iteration to the current
-    //
-    // uPrev = u
-    // u = uNext
-    //
-    // to prevent data races conditions
-    dataSyncShader.use();
-    dataSyncShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    dataSyncShader.setInt("imgOutput", texCS.texNum);
-    glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
-                      1);
-    // glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
-    //                   (unsigned int)TEXTURE_HEIGHT / 8, 1);
+      // This shader transfers the data from the previous
+      // iteration to the current
+      //
+      // uPrev = u
+      // u = uNext
+      //
+      // to prevent data races conditions
+      dataSyncShader.use();
+      dataSyncShader.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
+      dataSyncShader.setInt("imgOutput", texCS.texNum);
+      glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
+                        1);
+      // glDispatchCompute((unsigned int)TEXTURE_WIDTH / 128,
+      //                   (unsigned int)TEXTURE_HEIGHT / 8, 1);
 
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    texCS.unbindTexture();
-
+      texCS.unbindTexture();
+      runIt = pause ? false : true;
+    }
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
       GLFWwindow *backupCurrentContext = glfwGetCurrentContext();

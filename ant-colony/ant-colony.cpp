@@ -76,9 +76,8 @@ int main() {
 
   // Shader creation
   Shader shader(project, "vertexShader.vs.glsl", "fragmentShader.fs.glsl");
-  ComputeShader computeShader(project, "computeShader");
+  ComputeShader computeShader(project, "moveAnts");
   ComputeShader drawAntImage(project, "drawAntImage");
-  ComputeShader swapBuffer(project, "swapBuffer");
 
   // Texture creation
   Texture texFB(0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
@@ -91,9 +90,6 @@ int main() {
   drawAntImage.use();
   drawAntImage.setUIvec2("texSize", TEXTURE_WIDTH, TEXTURE_HEIGHT);
   drawAntImage.setInt("imgOutput", texCS.texNum);
-
-  swapBuffer.use();
-  swapBuffer.setInt("imgOutput", texCS.texNum);
   //
 
   Framebuffer fbo(&texFB);
@@ -102,16 +98,16 @@ int main() {
   std::vector<Image> image(TEXTURE_WIDTH * TEXTURE_HEIGHT);
   int simSpeed = 100;
   float vel = 0;
+  float dist = 10;
+  float angle = 15;
+  float turnAngle = 5;
 
   for (size_t i = 0; i < numAnts; i++) {
     float r = std::sqrt(rand() / (float)RAND_MAX * std::pow(radius, 2));
     float a = rand() / (float)RAND_MAX * 2 * M_PI;
     ant[i].pos = {r * std::cos(a) + (float)TEXTURE_WIDTH / 2,
                   r * std::sin(a) + (float)TEXTURE_HEIGHT / 2};
-    ant[i].dir = {ant[i].pos -
-                  glm::vec2(TEXTURE_WIDTH / 2, TEXTURE_HEIGHT / 2)};
-    ant[i].dir /= -1 * std::sqrt(ant[i].dir.x * ant[i].dir.x +
-                                 ant[i].dir.y * ant[i].dir.y);
+    ant[i].dir = a + M_PI;
     ant[i].color = {1.0, 1.0, 1.0, 1.0};
   }
 
@@ -133,6 +129,8 @@ int main() {
   const char *fps = "FPS";
   double totTime;
   size_t it = 0;
+  bool runIt = true;
+  bool pause = false;
   // render loop
   // -----------
   while (!glfwWindowShouldClose(window)) {
@@ -161,9 +159,25 @@ int main() {
         std::cout << "True" << std::endl;
         glfwSetWindowShouldClose(window, 1);
       }
-      static char shaderFile[32] = "computeShader";
+      static char shaderFile[32] = "moveAnts";
       ImGui::SliderInt("SimSpeed", &simSpeed, 100, 0);
       ImGui::SliderFloat("Velocity", &vel, 0, 1.0);
+      ImGui::SliderFloat("Look ahead", &dist, 0, 20);
+      ImGui::SliderFloat("Angle", &angle, 0, 20);
+      ImGui::SliderFloat("Turning angle", &turnAngle, 0, 10);
+      if (ImGui::Button("||")) {
+        pause = true;
+        runIt = false;
+      }
+      ImGui::SameLine();
+      if (ImGui::Button(">"))
+        runIt = true;
+      ImGui::SameLine();
+      if (ImGui::Button(">>")) {
+        runIt = true;
+        pause = false;
+      }
+
       int padding = ImGui::GetStyle().FramePadding.y + 1;
       ImGui::SetCursorPos(ImVec2(8, WINDOW_HEIGHT - initPos.y - padding -
                                         ImGui::GetFrameHeight()));
@@ -198,25 +212,27 @@ int main() {
 
     ImGui::Render();
     fbo.unbindFramebuffer();
+    if (runIt) {
+      texCS.bindTexture();
+      computeShader.use();
+      computeShader.setUint("stage", 0);
+      computeShader.setFloat("vel", vel);
+      computeShader.setFloat("dist", dist);
+      computeShader.setFloat("angle", angle / 180 * M_PI);
+      computeShader.setFloat("turnAngle", turnAngle / 180 * M_PI);
+      glDispatchCompute((unsigned int)numAnts / 1024, 1, 1);
 
-    computeShader.use();
-    computeShader.setFloat("vel", vel);
-    glDispatchCompute((unsigned int)numAnts / 1024, 1, 1);
+      drawAntImage.use();
+      drawAntImage.setUint("stage", 1);
+      glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
+                        1);
 
-    texCS.bindTexture();
+      glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    drawAntImage.use();
-    glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
-                      1);
-
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    texCS.unbindTexture();
-
-    swapBuffer.use();
-    glDispatchCompute((unsigned int)TEXTURE_WIDTH * TEXTURE_HEIGHT / 1024, 1,
-                      1);
+      texCS.unbindTexture();
+      runIt = pause ? false : true;
+    }
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -231,7 +247,7 @@ int main() {
     std::this_thread::sleep_for(
         std::chrono::microseconds(100 * (100 - simSpeed)));
     totTime += glfwGetTime() - startTime;
-    fps = std::to_string(totTime / it).c_str();
+    fps = (std::to_string(it / totTime) + " fps").c_str();
   }
 
   ImGui_ImplOpenGL3_Shutdown();

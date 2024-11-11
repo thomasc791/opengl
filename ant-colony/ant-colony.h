@@ -16,7 +16,8 @@
 
 struct Ant {
   glm::vec2 pos;
-  glm::vec2 dir;
+  float dir;
+  float pad;
   glm::vec4 color;
 };
 

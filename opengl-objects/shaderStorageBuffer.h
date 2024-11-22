@@ -15,8 +15,8 @@ public:
   ShaderStorageBuffer(unsigned int ssbNum);
   ~ShaderStorageBuffer();
 
-  void storeData(const void *data_ptr, size_t bufferSize);
-  // template <size_t w, size_t h> void storeData(float data[w][h]);
+  void storeData(const void *data_ptr, size_t bufferSize) const;
+  void updateData(const void *data_ptr, size_t bufferSize) const;
   void bindSSB();
   void unbindSSB();
 

@@ -1,8 +1,7 @@
 CPP = clang++
 C = clang
 
-WAVE_FILES = waves
-ANT_FILES = ant-colony
+PROJECT_FILES = project
 
 FILES = shader \
 				computeShader \
@@ -23,10 +22,10 @@ FLAGS = -std=c++20 \
 				-lXi \
 				-ldl \
 				-Wunused-command-line-argument \
-				-g
+				-march=native \
+				-O3
 
-WAVE_DIR = waves
-ANT_DIR = ant-colony
+PROJECT_DIR = project
 LIB_DIR = lib
 BUILD_DIR = build
 IMGUI_DIR = imgui-src
@@ -36,8 +35,8 @@ OPENGL_OBJECTS_DIR = opengl-objects
 IMGUI = $(shell find $(IMGUI_DIR) -name '*.cpp' | sed 's/$(IMGUI_DIR)\/\(.*\)\(.cpp\)/\1/')
 LIB_O = $(addprefix $(LIB_DIR)/, $(addsuffix .o, $(LIBFILES)))
 BD_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(FILES)))
-WAVE_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(WAVE_FILES)))
-WAVE_CPP = $(addprefix $(WAVE_DIR)/, $(addsuffix .cpp, $(WAVE_FILES)))
+PROJECT_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(PROJECT_FILES)))
+PROJECT_CPP = $(addprefix $(PROJECT_DIR)/, $(addsuffix .cpp, $(PROJECT_FILES)))
 ANT_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(ANT_FILES)))
 ANT_CPP = $(addprefix $(ANT_DIR)/, $(addsuffix .cpp, $(ANT_FILES)))
 IMGUI_FILES = $(addprefix $(IMGUI_DIR)/, $(addsuffix .cpp, $(IMGUI)))
@@ -48,16 +47,13 @@ all: lib $(BD_O) waves
 $(BUILD_DIR)/%.o: %.cpp
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
-$(WAVE_O): $(WAVE_CPP)
+$(PROJECT_O): $(PROJECT_CPP)
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
 $(ANT_O): $(ANT_CPP)
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
-waves: $(WAVE_O) $(BD_O)
-	$(CPP) $^ $(IMGUI_O)  $(FLAGS) -o $(BUILD_DIR)/$@
-
-ant: $(ANT_O) $(BD_O)
+project: $(PROJECT_O) $(BD_O)
 	$(CPP) $^ $(IMGUI_O)  $(FLAGS) -o $(BUILD_DIR)/$@
 
 imgui: $(IMGUI_O)

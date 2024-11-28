@@ -37,8 +37,6 @@ LIB_O = $(addprefix $(LIB_DIR)/, $(addsuffix .o, $(LIBFILES)))
 BD_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(FILES)))
 PROJECT_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(PROJECT_FILES)))
 PROJECT_CPP = $(addprefix $(PROJECT_DIR)/, $(addsuffix .cpp, $(PROJECT_FILES)))
-ANT_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(ANT_FILES)))
-ANT_CPP = $(addprefix $(ANT_DIR)/, $(addsuffix .cpp, $(ANT_FILES)))
 IMGUI_FILES = $(addprefix $(IMGUI_DIR)/, $(addsuffix .cpp, $(IMGUI)))
 IMGUI_O = $(addprefix $(IMGUI_BUILD)/, $(addsuffix .o, $(IMGUI)))
 
@@ -48,9 +46,6 @@ $(BUILD_DIR)/%.o: %.cpp
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
 $(PROJECT_O): $(PROJECT_CPP)
-	$(CPP) -g -c $^ -std=c++20 -o $@
-
-$(ANT_O): $(ANT_CPP)
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
 project: $(PROJECT_O) $(BD_O)

@@ -25,50 +25,55 @@ FLAGS = -std=c++20 \
 				-march=native \
 				-O3
 
-PROJECT_DIR = project
-LIB_DIR = lib
+SRC_DIR = src
 BUILD_DIR = build
-IMGUI_DIR = imgui-src
-IMGUI_BUILD = imgui-build
-OPENGL_OBJECTS_DIR = opengl-objects
+OPENGL_DIR = opengl
+OPENGL_LIB_DIR = $(OPENGL_DIR)/lib
+OPENGL_BUILD_DIR = $(OPENGL_DIR)/build
+OPENGL_IMGUI_DIR = $(OPENGL_DIR)/imgui-src
+OPENGL_IMGUI_BUILD = $(OPENGL_DIR)/imgui-build
+OPENGL_OBJECTS_DIR = $(OPENGL_DIR)/opengl-objects
 
-IMGUI = $(shell find $(IMGUI_DIR) -name '*.cpp' | sed 's/$(IMGUI_DIR)\/\(.*\)\(.cpp\)/\1/')
-LIB_O = $(addprefix $(LIB_DIR)/, $(addsuffix .o, $(LIBFILES)))
-BD_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(FILES)))
+OPENGL_IMGUI = $(shell find $(OPENGL_IMGUI_DIR) -name '*.cpp' | xargs -I {} basename {} | sed 's/.cpp//')
+OPENGL_LIB_O = $(addprefix $(OPENGL_LIB_DIR)/, $(addsuffix .o, $(LIBFILES)))
+OPENGL_BUILD_O = $(addprefix $(OPENGL_BUILD_DIR)/, $(addsuffix .o, $(FILES)))
 PROJECT_O = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(PROJECT_FILES)))
-PROJECT_CPP = $(addprefix $(PROJECT_DIR)/, $(addsuffix .cpp, $(PROJECT_FILES)))
-IMGUI_FILES = $(addprefix $(IMGUI_DIR)/, $(addsuffix .cpp, $(IMGUI)))
-IMGUI_O = $(addprefix $(IMGUI_BUILD)/, $(addsuffix .o, $(IMGUI)))
+PROJECT_CPP = $(addprefix $(SRC_DIR)/, $(addsuffix .cpp, $(PROJECT_FILES)))
+OPENGL_IMGUI_FILES = $(addprefix $(OPENGL_IMGUI_DIR)/, $(addsuffix .cpp, $(OPENGL_IMGUI)))
+OPENGL_IMGUI_O = $(addprefix $(OPENGL_IMGUI_BUILD)/, $(addsuffix .o, $(OPENGL_IMGUI)))
 
-all: lib $(BD_O) waves 
+all: lib imgui opengl project
 
-$(BUILD_DIR)/%.o: %.cpp
+$(OPENGL_BUILD_DIR)/%.o: %.cpp
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
 $(PROJECT_O): $(PROJECT_CPP)
 	$(CPP) -g -c $^ -std=c++20 -o $@
 
-project: $(PROJECT_O) $(BD_O)
-	$(CPP) $^ $(IMGUI_O)  $(FLAGS) -o $(BUILD_DIR)/$@
+project: $(PROJECT_O) $(BUILD_O)
+	$(CPP) $^ $(OPENGL_IMGUI_O) $(OPENGL_BUILD_O)  $(FLAGS) -o $(BUILD_DIR)/$@
 
-imgui: $(IMGUI_O)
+opengl: $(OPENGL_BUILD_O)
 
-$(IMGUI_O): $(IMGUI_BUILD)/%.o: $(IMGUI_DIR)/%.cpp
-	mkdir -p ./$(IMGUI_BUILD)
+imgui: $(OPENGL_IMGUI_O)
+
+$(OPENGL_IMGUI_O): $(OPENGL_IMGUI_BUILD)/%.o: $(OPENGL_IMGUI_DIR)/%.cpp
+	mkdir -p ./$(OPENGL_IMGUI_BUILD)
 	$(CPP) -g -c $< -std=c++20 -o $@
 
-lib: $(LIB_O)
-	$(C) $^ -shared -o $(LIB_DIR)/lib$(LIBFILES).so
+lib: $(OPENGL_LIB_O)
+	$(C) $^ -shared -o /usr/local/lib/lib$(LIBFILES).so
 
-$(LIB_O): $(LIBFILES).c
-	mkdir -p ./$(LIB_DIR)
-	$(C) -c -fPIC $^ -o $(LIB_DIR)/$(LIBFILES).o
+$(OPENGL_LIB_O): $(OPENGL_DIR)/$(LIBFILES).c
+	mkdir -p ./$(OPENGL_LIB_DIR)
+	$(C) -c -fPIC $^ -o $(OPENGL_LIB_DIR)/$(LIBFILES).o
 
-$(BD_O): $(BUILD_DIR)/%.o: $(OPENGL_OBJECTS_DIR)/%.cpp
-	mkdir -p ./$(BUILD_DIR)
+$(OPENGL_BUILD_O): $(OPENGL_BUILD_DIR)/%.o: $(OPENGL_OBJECTS_DIR)/%.cpp
+	mkdir -p ./$(OPENGL_BUILD_DIR)
 	$(CPP) -g -c $< -std=c++20 -o $@
 
 clean:
-	rm -rf ./$(BUILD_DIR)
-	rm -f core.*
-	rm -rf ./$(LIB_DIR)
+	rm -rf ./$(OPENGL_BUILD_DIR)
+	rm -rf ./$(OPENGL_LIB_DIR)
+	rm -rf ./$(OPENGL_IMGUI_BUILD)
+	rm -f /usr/local/lib/libglad.so
